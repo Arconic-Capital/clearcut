@@ -31,20 +31,31 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
 
-  const addExpense = () => {
+  // An expense typed into the add-row but not yet committed via the + button.
+  // Included automatically on submit so nothing typed is silently dropped.
+  const pendingExpense = (): Expense | null => {
     const amount = parseFloat(newAmount);
-    if (isNaN(amount) || amount <= 0) return;
-    setExpenses((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        category: newCategory,
-        label: newLabel || newCategory,
-        amount,
-      },
-    ]);
+    if (isNaN(amount) || amount <= 0) return null;
+    return {
+      id: crypto.randomUUID(),
+      category: newCategory,
+      label: newLabel || newCategory,
+      amount,
+    };
+  };
+
+  const addExpense = () => {
+    const expense = pendingExpense();
+    if (!expense) return;
+    setExpenses((prev) => [...prev, expense]);
     setNewLabel("");
     setNewAmount("");
+  };
+
+  const submit = () => {
+    const pending = pendingExpense();
+    const all = pending ? [...expenses, pending] : expenses;
+    onNext(all.filter((e) => e.amount > 0));
   };
 
   const updateAmount = (id: string, val: string) => {
@@ -58,7 +69,7 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const hasExpenses = expenses.some((e) => e.amount > 0);
+  const hasExpenses = expenses.some((e) => e.amount > 0) || pendingExpense() !== null;
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
@@ -187,7 +198,7 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
           </button>
           <button
             disabled={!hasExpenses}
-            onClick={() => onNext(expenses.filter((e) => e.amount > 0))}
+            onClick={submit}
             className="btn-primary flex-1 py-3 text-sm"
           >
             Continue

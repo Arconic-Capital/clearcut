@@ -37,29 +37,46 @@ export function GoalsStep({ goals: initialGoals, debts: initialDebts, onBack, on
   const [debtBalance, setDebtBalance] = useState("");
   const [debtRate, setDebtRate] = useState("");
 
-  const addGoal = () => {
+  // A goal/debt typed into the inputs but not yet added via the + button.
+  // Committed automatically on submit so nothing typed is silently dropped.
+  const pendingGoal = (): Goal | null => {
     const target = parseFloat(goalTarget);
-    if (isNaN(target) || target <= 0) return;
-    setGoals((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), label: goalLabel || "Savings goal", target },
-    ]);
+    if (isNaN(target) || target <= 0) return null;
+    return { id: crypto.randomUUID(), label: goalLabel || "Savings goal", target };
+  };
+
+  const pendingDebt = (): Debt | null => {
+    const balance = parseFloat(debtBalance);
+    const rate = parseFloat(debtRate);
+    if (isNaN(balance) || balance <= 0 || isNaN(rate) || rate < 0) return null;
+    return { id: crypto.randomUUID(), label: debtLabel || "Debt", balance, rate };
+  };
+
+  const addGoal = () => {
+    const goal = pendingGoal();
+    if (!goal) return;
+    setGoals((prev) => [...prev, goal]);
     setGoalLabel("");
     setGoalTarget("");
   };
 
   const addDebt = () => {
-    const balance = parseFloat(debtBalance);
-    const rate = parseFloat(debtRate);
-    if (isNaN(balance) || balance <= 0 || isNaN(rate) || rate < 0) return;
-    setDebts((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), label: debtLabel || "Debt", balance, rate },
-    ]);
+    const debt = pendingDebt();
+    if (!debt) return;
+    setDebts((prev) => [...prev, debt]);
     setDebtLabel("");
     setDebtBalance("");
     setDebtRate("");
   };
+
+  const submit = () => {
+    const g = pendingGoal();
+    const d = pendingDebt();
+    onNext(g ? [...goals, g] : goals, d ? [...debts, d] : debts);
+  };
+
+  const hasAnything =
+    goals.length > 0 || debts.length > 0 || pendingGoal() !== null || pendingDebt() !== null;
 
   return (
     <div className="max-w-lg mx-auto pt-10">
@@ -203,11 +220,8 @@ export function GoalsStep({ goals: initialGoals, debts: initialDebts, onBack, on
         <button onClick={onBack} className="btn-ghost flex-1 py-3 text-sm">
           Back
         </button>
-        <button
-          onClick={() => onNext(goals, debts)}
-          className="btn-primary flex-1 py-3 text-sm"
-        >
-          {goals.length === 0 && debts.length === 0 ? "Skip — see results" : "See results"}
+        <button onClick={submit} className="btn-primary flex-1 py-3 text-sm">
+          {hasAnything ? "See results" : "Skip — see results"}
         </button>
       </div>
     </div>
