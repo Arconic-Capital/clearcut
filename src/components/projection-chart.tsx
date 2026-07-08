@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,12 +21,20 @@ export function ProjectionChart({ data }: ProjectionChartProps) {
   return (
     <div className="w-full h-[320px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+        <AreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+          <defs>
+            <linearGradient id="fillAggressive" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#b2fce4" stopOpacity={0.7} />
+              <stop offset="100%" stopColor="#b2fce4" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#eaeaea" vertical={false} />
           <XAxis
             dataKey="year"
             tickFormatter={(v) => `Yr ${v}`}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11, fill: "#787774", fontFamily: "var(--font-geist-mono)" }}
+            axisLine={{ stroke: "#eaeaea" }}
+            tickLine={false}
           />
           <YAxis
             tickFormatter={(v) => {
@@ -34,39 +42,55 @@ export function ProjectionChart({ data }: ProjectionChartProps) {
               if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
               return `$${v}`;
             }}
-            tick={{ fontSize: 12 }}
-            width={60}
+            tick={{ fontSize: 11, fill: "#787774", fontFamily: "var(--font-geist-mono)" }}
+            axisLine={false}
+            tickLine={false}
+            width={55}
           />
           <Tooltip
             formatter={(value) => formatCurrency(Number(value))}
             labelFormatter={(label) => `Year ${label}`}
+            contentStyle={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #eaeaea",
+              borderRadius: "8px",
+              fontSize: "13px",
+              padding: "10px 14px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            }}
+            itemStyle={{ color: "#111111" }}
+            labelStyle={{ color: "#787774", marginBottom: "4px" }}
           />
-          <Legend />
-          <Line
+          <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "16px" }} iconType="plainline" />
+          <Area
             type="monotone"
             dataKey="current"
-            name="Stay the Course"
-            stroke="#a1a1aa"
-            strokeWidth={2}
+            name="Stay the course"
+            stroke="#d4d4d0"
+            strokeWidth={1.5}
+            fill="transparent"
             dot={false}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey="moderate"
-            name="Moderate Cuts"
-            stroke="#3b82f6"
-            strokeWidth={2}
+            name="Moderate cuts"
+            stroke="#787774"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            fill="transparent"
             dot={false}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey="aggressive"
-            name="Aggressive Cuts"
-            stroke="#10b981"
-            strokeWidth={2}
+            name="Aggressive cuts"
+            stroke="#0a3d2e"
+            strokeWidth={2.5}
+            fill="url(#fillAggressive)"
             dot={false}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

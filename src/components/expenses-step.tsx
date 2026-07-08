@@ -2,17 +2,10 @@
 
 import { useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { EXPENSE_CATEGORIES, type Expense, type ExpenseCategory } from "@/lib/benchmarks";
-import { Trash2, Plus } from "lucide-react";
+  EXPENSE_CATEGORIES,
+  type Expense,
+  type ExpenseCategory,
+} from "@/lib/benchmarks";
 
 interface ExpensesStepProps {
   expenses: Expense[];
@@ -30,10 +23,11 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
           { id: crypto.randomUUID(), category: "Transport", label: "Transport", amount: 0 },
           { id: crypto.randomUUID(), category: "Utilities", label: "Utilities", amount: 0 },
           { id: crypto.randomUUID(), category: "Subscriptions", label: "Subscriptions", amount: 0 },
+          { id: crypto.randomUUID(), category: "Dining Out", label: "Dining out", amount: 0 },
         ]
   );
 
-  const [newCategory, setNewCategory] = useState<ExpenseCategory>("Dining Out");
+  const [newCategory, setNewCategory] = useState<ExpenseCategory>("Entertainment");
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
 
@@ -65,100 +59,141 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
   };
 
   const hasExpenses = expenses.some((e) => e.amount > 0);
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <Card className="max-w-lg mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl">Your Monthly Expenses</CardTitle>
-        <CardDescription>
-          Add your recurring monthly expenses. Update amounts or add new ones.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-3">
-          {expenses.map((expense) => (
-            <div key={expense.id} className="flex items-center gap-3">
+    <div className="max-w-lg mx-auto pt-10">
+      <div className="text-center mb-10">
+        <span className="tag-neutral mb-6">Step 2 of 3</span>
+        <h1 className="font-serif-display text-4xl sm:text-5xl font-medium mt-6 mb-4">
+          Where does
+          <br />
+          <em>it all go?</em>
+        </h1>
+        <p className="text-muted-foreground">
+          Your recurring monthly costs. Honest numbers, better plan.
+        </p>
+      </div>
+
+      <div className="card-flat p-6 sm:p-8">
+        <div className="divide-y divide-border">
+          {expenses.map((expense, i) => (
+            <div
+              key={expense.id}
+              className="group flex items-center gap-3 py-3 animate-rise"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{expense.label}</div>
                 <div className="text-xs text-muted-foreground">{expense.category}</div>
               </div>
-              <div className="w-28">
-                <Input
+              <div className="relative w-28">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
+                  $
+                </span>
+                <input
                   type="number"
                   placeholder="0"
+                  aria-label={`${expense.label} amount`}
                   value={expense.amount > 0 ? expense.amount : ""}
                   onChange={(e) => updateAmount(expense.id, e.target.value)}
+                  className="input-flat no-spinner w-full px-3 pl-7 py-2 text-sm font-mono text-right"
                 />
               </div>
               <button
                 onClick={() => removeExpense(expense.id)}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                aria-label={`Remove ${expense.label}`}
+                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1"
               >
-                <Trash2 className="h-4 w-4" />
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 3L11 11M11 3L3 11"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
               </button>
             </div>
           ))}
         </div>
 
-        <div className="border-t pt-4 space-y-3">
-          <p className="text-sm font-medium">Add another expense</p>
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-            <div>
-              <Label htmlFor="category" className="sr-only">
-                Category
-              </Label>
-              <select
-                id="category"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value as ExpenseCategory)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {EXPENSE_CATEGORIES.filter((c) => c !== "Savings & Investments").map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="amount" className="sr-only">
-                Amount
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="$ amount"
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addExpense();
-                }}
-              />
-            </div>
-            <Button variant="outline" size="icon" onClick={addExpense}>
-              <Plus className="h-4 w-4" />
-            </Button>
+        {total > 0 && (
+          <div className="flex items-center justify-between mt-4 py-3 px-4 rounded-lg bg-mint">
+            <span className="text-xs font-medium uppercase tracking-wider text-mint-dark">
+              Total
+            </span>
+            <span className="font-mono font-semibold text-mint-dark">
+              ${total.toLocaleString()}/mo
+            </span>
           </div>
-          <Input
+        )}
+
+        <div className="border-t border-border mt-6 pt-6">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+            Add an expense
+          </p>
+          <div className="flex gap-2 mb-2">
+            <select
+              value={newCategory}
+              aria-label="Expense category"
+              onChange={(e) => setNewCategory(e.target.value as ExpenseCategory)}
+              className="input-flat flex-1 px-3 py-2 text-sm"
+            >
+              {EXPENSE_CATEGORIES.filter((c) => c !== "Savings & Investments").map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="$"
+              aria-label="New expense amount"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addExpense();
+              }}
+              className="input-flat no-spinner w-24 px-3 py-2 text-sm font-mono"
+            />
+            <button
+              onClick={addExpense}
+              aria-label="Add expense"
+              className="btn-ghost h-9 w-9 flex items-center justify-center shrink-0"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path
+                  d="M7 2V12M2 7H12"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <input
             placeholder="Label (optional)"
+            aria-label="New expense label"
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
+            className="input-flat w-full px-3 py-2 text-sm"
           />
         </div>
 
-        <div className="flex gap-3 pt-2">
-          <Button variant="outline" onClick={onBack} className="flex-1">
+        <div className="flex gap-3 mt-8">
+          <button onClick={onBack} className="btn-ghost flex-1 py-3 text-sm">
             Back
-          </Button>
-          <Button
-            className="flex-1"
+          </button>
+          <button
             disabled={!hasExpenses}
             onClick={() => onNext(expenses.filter((e) => e.amount > 0))}
+            className="btn-primary flex-1 py-3 text-sm"
           >
-            See Results
-          </Button>
+            See results
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

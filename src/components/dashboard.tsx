@@ -1,15 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { SpendingBreakdown } from "@/components/spending-breakdown";
 import { ProjectionChart } from "@/components/projection-chart";
 import {
@@ -18,13 +9,6 @@ import {
   calculateProjections,
   formatCurrency,
 } from "@/lib/benchmarks";
-import {
-  ArrowDown,
-  TrendingUp,
-  AlertTriangle,
-  RotateCcw,
-  ChevronLeft,
-} from "lucide-react";
 
 interface DashboardProps {
   income: number;
@@ -69,191 +53,240 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
+  const scenarios = [
+    {
+      key: "current",
+      label: "Stay the course",
+      five: projections[5]?.current ?? 0,
+      ten: projections[10]?.current ?? 0,
+      highlight: false,
+    },
+    {
+      key: "moderate",
+      label: "Moderate cuts",
+      five: projections[5]?.moderate ?? 0,
+      ten: projections[10]?.moderate ?? 0,
+      highlight: false,
+    },
+    {
+      key: "aggressive",
+      label: "Aggressive cuts",
+      five: projections[5]?.aggressive ?? 0,
+      ten: projections[10]?.aggressive ?? 0,
+      highlight: true,
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4 mr-1" /> Edit Expenses
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onReset}>
-          <RotateCcw className="h-4 w-4 mr-1" /> Start Over
-        </Button>
+    <div className="pb-16">
+      <div className="flex items-center justify-between mb-8">
+        <button
+          onClick={onBack}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          &larr; Edit expenses
+        </button>
+        <button
+          onClick={onReset}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Start over
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Monthly Income</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(income)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Expenses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Monthly Surplus</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                monthlySurplus >= 0 ? "text-emerald-600" : "text-red-600"
-              }`}
-            >
-              {formatCurrency(monthlySurplus)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {savingsRate.toFixed(1)}% savings rate
-            </div>
-          </CardContent>
-        </Card>
+      <div className="text-center mb-12 animate-rise">
+        <span className="tag-neutral mb-6">Step 3 of 3</span>
+        <h1 className="font-serif-display text-4xl sm:text-5xl font-medium mt-6">
+          Your money,
+          <br />
+          <em>laid bare.</em>
+        </h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Spending Breakdown</CardTitle>
-          <CardDescription>Where your money goes each month</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Bento summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+        <div className="card-flat p-6 animate-rise rise-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Income
+          </p>
+          <p className="text-2xl font-mono font-semibold">{formatCurrency(income)}</p>
+          <p className="text-xs text-muted-foreground mt-1">per month</p>
+        </div>
+        <div className="card-flat p-6 animate-rise rise-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Expenses
+          </p>
+          <p className="text-2xl font-mono font-semibold">{formatCurrency(totalExpenses)}</p>
+          <p className="text-xs text-muted-foreground mt-1">per month</p>
+        </div>
+        <div
+          className={`p-6 rounded-xl border animate-rise rise-3 ${
+            monthlySurplus >= 0
+              ? "bg-mint border-mint"
+              : "bg-white border-border"
+          }`}
+        >
+          <p
+            className={`text-xs font-medium uppercase tracking-wider mb-2 ${
+              monthlySurplus >= 0 ? "text-mint-dark/70" : "text-muted-foreground"
+            }`}
+          >
+            Surplus
+          </p>
+          <p
+            className={`text-2xl font-mono font-semibold ${
+              monthlySurplus >= 0 ? "text-mint-dark" : "text-destructive"
+            }`}
+          >
+            {formatCurrency(monthlySurplus)}
+          </p>
+          <p
+            className={`text-xs mt-1 ${
+              monthlySurplus >= 0 ? "text-mint-dark/70" : "text-muted-foreground"
+            }`}
+          >
+            {savingsRate.toFixed(1)}% savings rate
+          </p>
+        </div>
+        <div className="card-flat p-6 animate-rise rise-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Potential
+          </p>
+          <p className="text-2xl font-mono font-semibold">
+            {formatCurrency(totalPossibleSaving)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">extra savings/mo</p>
+        </div>
+      </div>
+
+      {/* Bento: breakdown + recommendations */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+        <div className="card-flat p-8 lg:col-span-3 animate-rise rise-2">
+          <h2 className="font-semibold mb-1">Spending breakdown</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Share of monthly income by category
+          </p>
           <SpendingBreakdown data={categoryTotals} income={income} />
-        </CardContent>
-      </Card>
+        </div>
 
-      {recommendations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Recommendations
-            </CardTitle>
-            <CardDescription>
-              Categories where you&apos;re spending above typical benchmarks. You could
-              save up to {formatCurrency(totalPossibleSaving)}/month.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recommendations.map((rec) => (
-              <div
-                key={rec.category}
-                className="flex items-start gap-4 p-3 rounded-lg bg-muted/50"
-              >
-                <div className="mt-0.5 h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                  <ArrowDown className="h-4 w-4 text-amber-700" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">{rec.category}</div>
-                  <div className="text-sm text-muted-foreground">
-                    You spend {rec.currentPercent}% of income (benchmark:{" "}
-                    {rec.benchmarkPercent}%). Reduce by ~{rec.suggestedCut}% to save{" "}
-                    <span className="font-medium text-emerald-600">
-                      {formatCurrency(rec.monthlySaving)}/mo
+        <div className="card-flat p-8 lg:col-span-2 animate-rise rise-3">
+          <h2 className="font-semibold mb-1">Where to cut</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Ranked by monthly impact
+          </p>
+          {recommendations.length === 0 ? (
+            <div className="py-8 text-center">
+              <span className="tag-mint mb-3">On track</span>
+              <p className="text-sm text-muted-foreground mt-3">
+                Spending is within benchmarks across every category.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recommendations.map((rec) => (
+                <div key={rec.category} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-baseline justify-between gap-3 mb-1">
+                    <span className="text-sm font-medium">{rec.category}</span>
+                    <span className="text-sm font-mono font-semibold text-mint-dark whitespace-nowrap">
+                      +{formatCurrency(rec.monthlySaving)}/mo
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    {rec.currentPercent}% of income against a {rec.benchmarkPercent}%
+                    benchmark. Trim roughly {rec.suggestedCut}%.
+                  </p>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-      {recommendations.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <TrendingUp className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
-            <p className="font-medium">Looking good!</p>
+      {/* Projection */}
+      <div className="card-flat p-8 animate-rise rise-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+          <div>
+            <h2 className="font-semibold mb-1">Ten-year projection</h2>
             <p className="text-sm text-muted-foreground">
-              Your spending is within typical benchmarks across all categories.
+              Savings compounded monthly at your chosen return
             </p>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Savings Projection</CardTitle>
-          <CardDescription>
-            Where your savings could be in 10 years at {returnRate}% annual return
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">
-              Annual return:
+          </div>
+          <div className="flex items-center gap-3">
+            <label
+              htmlFor="return-rate"
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+            >
+              Return
             </label>
             <input
+              id="return-rate"
               type="range"
               min={0}
               max={12}
               step={0.5}
               value={returnRate}
               onChange={(e) => setReturnRate(parseFloat(e.target.value))}
-              className="flex-1"
+              className="range-mint w-36"
             />
-            <span className="text-sm font-medium w-12 text-right">{returnRate}%</span>
+            <span className="text-sm font-mono font-semibold w-12 text-right">
+              {returnRate}%
+            </span>
           </div>
-          <ProjectionChart data={projections} />
-          <Separator />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Stay the Course (10yr)
+        </div>
+
+        <ProjectionChart data={projections} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+          {scenarios.map((s) => (
+            <div
+              key={s.key}
+              className={`rounded-xl border p-6 ${
+                s.highlight ? "bg-mint border-mint" : "bg-white border-border"
+              }`}
+            >
+              <p
+                className={`text-xs font-medium uppercase tracking-wider mb-4 ${
+                  s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                }`}
+              >
+                {s.label}
+              </p>
+              <div className="flex items-baseline justify-between mb-2">
+                <span
+                  className={`text-xs font-mono ${
+                    s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                  }`}
+                >
+                  5 yr
+                </span>
+                <span
+                  className={`font-mono font-medium ${
+                    s.highlight ? "text-mint-dark" : ""
+                  }`}
+                >
+                  {formatCurrency(s.five)}
+                </span>
               </div>
-              <div className="text-lg font-bold">
-                {formatCurrency(projections[10]?.current ?? 0)}
+              <div className="flex items-baseline justify-between">
+                <span
+                  className={`text-xs font-mono ${
+                    s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                  }`}
+                >
+                  10 yr
+                </span>
+                <span
+                  className={`text-xl font-mono font-semibold ${
+                    s.highlight ? "text-mint-dark" : ""
+                  }`}
+                >
+                  {formatCurrency(s.ten)}
+                </span>
               </div>
             </div>
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Moderate Cuts (10yr)
-              </div>
-              <div className="text-lg font-bold text-blue-600">
-                {formatCurrency(projections[10]?.moderate ?? 0)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Aggressive Cuts (10yr)
-              </div>
-              <div className="text-lg font-bold text-emerald-600">
-                {formatCurrency(projections[10]?.aggressive ?? 0)}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center pt-2">
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Stay the Course (5yr)
-              </div>
-              <div className="text-base font-semibold">
-                {formatCurrency(projections[5]?.current ?? 0)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Moderate Cuts (5yr)
-              </div>
-              <div className="text-base font-semibold text-blue-600">
-                {formatCurrency(projections[5]?.moderate ?? 0)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Aggressive Cuts (5yr)
-              </div>
-              <div className="text-base font-semibold text-emerald-600">
-                {formatCurrency(projections[5]?.aggressive ?? 0)}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
