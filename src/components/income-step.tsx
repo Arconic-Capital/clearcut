@@ -15,7 +15,7 @@ export function IncomeStep({ income, onNext }: IncomeStepProps) {
   return (
     <div className="max-w-md mx-auto pt-16">
       <div className="text-center mb-12">
-        <span className="tag-neutral mb-6">Step 1 of 3</span>
+        <span className="tag-neutral mb-6">Step 1 of 4</span>
         <h1 className="font-serif-display text-4xl sm:text-5xl font-medium mt-6 mb-4">
           What lands in
           <br />

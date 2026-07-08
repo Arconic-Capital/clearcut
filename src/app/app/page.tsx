@@ -4,14 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { IncomeStep } from "@/components/income-step";
 import { ExpensesStep } from "@/components/expenses-step";
+import { GoalsStep } from "@/components/goals-step";
 import { Dashboard } from "@/components/dashboard";
-import type { Expense } from "@/lib/benchmarks";
+import type { Debt, Expense, Goal } from "@/lib/benchmarks";
 
-type Step = "income" | "expenses" | "dashboard";
+type Step = "income" | "expenses" | "goals" | "dashboard";
 
 const STEPS: { key: Step; label: string }[] = [
   { key: "income", label: "Income" },
   { key: "expenses", label: "Expenses" },
+  { key: "goals", label: "Goals" },
   { key: "dashboard", label: "Results" },
 ];
 
@@ -19,6 +21,8 @@ export default function AppPage() {
   const [step, setStep] = useState<Step>("income");
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -97,6 +101,18 @@ export default function AppPage() {
               onBack={() => setStep("income")}
               onNext={(exps) => {
                 setExpenses(exps);
+                setStep("goals");
+              }}
+            />
+          )}
+          {step === "goals" && (
+            <GoalsStep
+              goals={goals}
+              debts={debts}
+              onBack={() => setStep("expenses")}
+              onNext={(g, d) => {
+                setGoals(g);
+                setDebts(d);
                 setStep("dashboard");
               }}
             />
@@ -105,10 +121,14 @@ export default function AppPage() {
             <Dashboard
               income={income}
               expenses={expenses}
-              onBack={() => setStep("expenses")}
+              goals={goals}
+              debts={debts}
+              onBack={() => setStep("goals")}
               onReset={() => {
                 setIncome(0);
                 setExpenses([]);
+                setGoals([]);
+                setDebts([]);
                 setStep("income");
               }}
             />

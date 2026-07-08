@@ -86,6 +86,19 @@ export function getRecommendations(
   return recs.sort((a, b) => b.monthlySaving - a.monthlySaving);
 }
 
+export interface Debt {
+  id: string;
+  label: string;
+  balance: number;
+  rate: number; // annual interest %
+}
+
+export interface Goal {
+  id: string;
+  label: string;
+  target: number;
+}
+
 export interface ProjectionPoint {
   year: number;
   current: number;
@@ -93,13 +106,102 @@ export interface ProjectionPoint {
   aggressive: number;
 }
 
+export interface ScenarioResult {
+  monthlySaving: number;
+  netWorthByYear: number[]; // index = year, 0..years
+  debtFreeMonth: number | null; // null = no debts, or not cleared within horizon
+  interestPaid: number;
+  goalHitMonths: Record<string, number | null>; // goalId -> month hit, null = not within horizon
+}
+
+export interface ProjectionResult {
+  points: ProjectionPoint[];
+  current: ScenarioResult;
+  moderate: ScenarioResult;
+  aggressive: ScenarioResult;
+}
+
+// Month-by-month simulation. Surplus goes to debts first (avalanche:
+// highest rate first), the remainder into savings compounding monthly.
+// Net worth = savings minus outstanding debt.
+export function simulateScenario(
+  monthlySaving: number,
+  debts: Debt[],
+  goals: Goal[],
+  annualReturn: number,
+  years: number = 10
+): ScenarioResult {
+  const monthlyReturn = annualReturn / 100 / 12;
+  const balances = debts
+    .map((d) => ({ balance: d.balance, monthlyRate: d.rate / 100 / 12 }))
+    .sort((a, b) => b.monthlyRate - a.monthlyRate);
+
+  let savings = 0;
+  let interestPaid = 0;
+  let debtFreeMonth: number | null = debts.length === 0 ? null : null;
+  const goalHitMonths: Record<string, number | null> = {};
+  for (const g of goals) goalHitMonths[g.id] = null;
+
+  const startingDebt = balances.reduce((s, b) => s + b.balance, 0);
+  const netWorthByYear: number[] = [Math.round(-startingDebt)];
+
+  let cleared = debts.length === 0;
+
+  for (let m = 1; m <= years * 12; m++) {
+    let available = Math.max(0, monthlySaving);
+
+    let totalDebt = 0;
+    for (const b of balances) {
+      if (b.balance <= 0) continue;
+      const interest = b.balance * b.monthlyRate;
+      b.balance += interest;
+      interestPaid += interest;
+    }
+    for (const b of balances) {
+      if (b.balance <= 0 || available <= 0) continue;
+      const pay = Math.min(b.balance, available);
+      b.balance -= pay;
+      available -= pay;
+    }
+    totalDebt = balances.reduce((s, b) => s + Math.max(0, b.balance), 0);
+
+    if (!cleared && totalDebt < 0.01) {
+      cleared = true;
+      debtFreeMonth = m;
+    }
+
+    savings = savings * (1 + monthlyReturn) + available;
+    const netWorth = savings - totalDebt;
+
+    for (const g of goals) {
+      if (goalHitMonths[g.id] === null && netWorth >= g.target) {
+        goalHitMonths[g.id] = m;
+      }
+    }
+
+    if (m % 12 === 0) {
+      netWorthByYear.push(Math.round(netWorth));
+    }
+  }
+
+  return {
+    monthlySaving,
+    netWorthByYear,
+    debtFreeMonth,
+    interestPaid: Math.round(interestPaid),
+    goalHitMonths,
+  };
+}
+
 export function calculateProjections(
   income: number,
   totalExpenses: number,
   recommendations: Recommendation[],
+  debts: Debt[] = [],
+  goals: Goal[] = [],
   annualReturn: number = 5,
   years: number = 10
-): ProjectionPoint[] {
+): ProjectionResult {
   const currentMonthlySaving = Math.max(0, income - totalExpenses);
 
   const totalPossibleSaving = recommendations.reduce(
@@ -110,27 +212,29 @@ export function calculateProjections(
     currentMonthlySaving + Math.round(totalPossibleSaving * 0.5);
   const aggressiveSaving = currentMonthlySaving + totalPossibleSaving;
 
-  const monthlyRate = annualReturn / 100 / 12;
-  const points: ProjectionPoint[] = [
-    { year: 0, current: 0, moderate: 0, aggressive: 0 },
-  ];
+  const current = simulateScenario(currentMonthlySaving, debts, goals, annualReturn, years);
+  const moderate = simulateScenario(moderateSaving, debts, goals, annualReturn, years);
+  const aggressive = simulateScenario(aggressiveSaving, debts, goals, annualReturn, years);
 
-  for (let y = 1; y <= years; y++) {
-    const months = y * 12;
-    const fvFactor =
-      monthlyRate > 0
-        ? ((1 + monthlyRate) ** months - 1) / monthlyRate
-        : months;
-
+  const points: ProjectionPoint[] = [];
+  for (let y = 0; y <= years; y++) {
     points.push({
       year: y,
-      current: Math.round(currentMonthlySaving * fvFactor),
-      moderate: Math.round(moderateSaving * fvFactor),
-      aggressive: Math.round(aggressiveSaving * fvFactor),
+      current: current.netWorthByYear[y],
+      moderate: moderate.netWorthByYear[y],
+      aggressive: aggressive.netWorthByYear[y],
     });
   }
 
-  return points;
+  return { points, current, moderate, aggressive };
+}
+
+export function formatMonths(m: number | null): string {
+  if (m === null) return "Beyond 10 yrs";
+  if (m < 12) return `${m} mo`;
+  const y = Math.floor(m / 12);
+  const rem = m % 12;
+  return rem === 0 ? `${y} yr` : `${y} yr ${rem} mo`;
 }
 
 export function formatCurrency(value: number): string {

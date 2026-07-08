@@ -8,16 +8,30 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import type { ProjectionPoint } from "@/lib/benchmarks";
+import type { Goal, ProjectionPoint } from "@/lib/benchmarks";
 import { formatCurrency } from "@/lib/benchmarks";
 
 interface ProjectionChartProps {
   data: ProjectionPoint[];
+  goals?: Goal[];
 }
 
-export function ProjectionChart({ data }: ProjectionChartProps) {
+function formatAxis(v: number): string {
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}k`;
+  return `${sign}$${abs}`;
+}
+
+export function ProjectionChart({ data, goals = [] }: ProjectionChartProps) {
+  const hasNegative = data.some(
+    (p) => p.current < 0 || p.moderate < 0 || p.aggressive < 0
+  );
+
   return (
     <div className="w-full h-[320px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -37,15 +51,11 @@ export function ProjectionChart({ data }: ProjectionChartProps) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={(v) => {
-              if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-              if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
-              return `$${v}`;
-            }}
+            tickFormatter={formatAxis}
             tick={{ fontSize: 11, fill: "#787774", fontFamily: "var(--font-geist-mono)" }}
             axisLine={false}
             tickLine={false}
-            width={55}
+            width={60}
           />
           <Tooltip
             formatter={(value) => formatCurrency(Number(value))}
@@ -62,6 +72,28 @@ export function ProjectionChart({ data }: ProjectionChartProps) {
             labelStyle={{ color: "#787774", marginBottom: "4px" }}
           />
           <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "16px" }} iconType="plainline" />
+
+          {hasNegative && (
+            <ReferenceLine y={0} stroke="#787774" strokeWidth={1} />
+          )}
+
+          {goals.map((g) => (
+            <ReferenceLine
+              key={g.id}
+              y={g.target}
+              stroke="#0a3d2e"
+              strokeDasharray="6 4"
+              strokeOpacity={0.5}
+              label={{
+                value: g.label,
+                position: "insideTopRight",
+                fontSize: 10,
+                fill: "#0a3d2e",
+                fontFamily: "var(--font-geist-mono)",
+              }}
+            />
+          ))}
+
           <Area
             type="monotone"
             dataKey="current"

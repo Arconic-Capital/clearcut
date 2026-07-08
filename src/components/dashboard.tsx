@@ -4,20 +4,31 @@ import { useMemo, useState } from "react";
 import { SpendingBreakdown } from "@/components/spending-breakdown";
 import { ProjectionChart } from "@/components/projection-chart";
 import {
+  type Debt,
   type Expense,
+  type Goal,
   getRecommendations,
   calculateProjections,
   formatCurrency,
+  formatMonths,
 } from "@/lib/benchmarks";
 
 interface DashboardProps {
   income: number;
   expenses: Expense[];
+  goals: Goal[];
+  debts: Debt[];
   onBack: () => void;
   onReset: () => void;
 }
 
-export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps) {
+const SCENARIO_META = [
+  { key: "current" as const, label: "Stay the course", highlight: false },
+  { key: "moderate" as const, label: "Moderate cuts", highlight: false },
+  { key: "aggressive" as const, label: "Aggressive cuts", highlight: true },
+];
+
+export function Dashboard({ income, expenses, goals, debts, onBack, onReset }: DashboardProps) {
   const [returnRate, setReturnRate] = useState(5);
 
   const totalExpenses = useMemo(
@@ -38,9 +49,17 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
     0
   );
 
-  const projections = useMemo(
-    () => calculateProjections(income, totalExpenses, recommendations, returnRate),
-    [income, totalExpenses, recommendations, returnRate]
+  const projection = useMemo(
+    () =>
+      calculateProjections(
+        income,
+        totalExpenses,
+        recommendations,
+        debts,
+        goals,
+        returnRate
+      ),
+    [income, totalExpenses, recommendations, debts, goals, returnRate]
   );
 
   const categoryTotals = useMemo(() => {
@@ -53,29 +72,8 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  const scenarios = [
-    {
-      key: "current",
-      label: "Stay the course",
-      five: projections[5]?.current ?? 0,
-      ten: projections[10]?.current ?? 0,
-      highlight: false,
-    },
-    {
-      key: "moderate",
-      label: "Moderate cuts",
-      five: projections[5]?.moderate ?? 0,
-      ten: projections[10]?.moderate ?? 0,
-      highlight: false,
-    },
-    {
-      key: "aggressive",
-      label: "Aggressive cuts",
-      five: projections[5]?.aggressive ?? 0,
-      ten: projections[10]?.aggressive ?? 0,
-      highlight: true,
-    },
-  ];
+  const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+  const debtsByRate = [...debts].sort((a, b) => b.rate - a.rate);
 
   return (
     <div className="pb-16">
@@ -84,7 +82,7 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
           onClick={onBack}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; Edit expenses
+          &larr; Goals &amp; debts
         </button>
         <button
           onClick={onReset}
@@ -95,7 +93,7 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
       </div>
 
       <div className="text-center mb-12 animate-rise">
-        <span className="tag-neutral mb-6">Step 3 of 3</span>
+        <span className="tag-neutral mb-6">Your plan</span>
         <h1 className="font-serif-display text-4xl sm:text-5xl font-medium mt-6">
           Your money,
           <br />
@@ -121,9 +119,7 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
         </div>
         <div
           className={`p-6 rounded-xl border animate-rise rise-3 ${
-            monthlySurplus >= 0
-              ? "bg-mint border-mint"
-              : "bg-white border-border"
+            monthlySurplus >= 0 ? "bg-mint border-mint" : "bg-white border-border"
           }`}
         >
           <p
@@ -150,12 +146,20 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
         </div>
         <div className="card-flat p-6 animate-rise rise-4">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            Potential
+            {totalDebt > 0 ? "Total debt" : "Potential"}
           </p>
-          <p className="text-2xl font-mono font-semibold">
-            {formatCurrency(totalPossibleSaving)}
+          <p
+            className={`text-2xl font-mono font-semibold ${
+              totalDebt > 0 ? "text-destructive" : ""
+            }`}
+          >
+            {totalDebt > 0
+              ? formatCurrency(totalDebt)
+              : formatCurrency(totalPossibleSaving)}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">extra savings/mo</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {totalDebt > 0 ? "owing today" : "extra savings/mo"}
+          </p>
         </div>
       </div>
 
@@ -202,13 +206,143 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
         </div>
       </div>
 
+      {/* Debt payoff + goal timelines */}
+      {(debts.length > 0 || goals.length > 0) && (
+        <div
+          className={`grid grid-cols-1 gap-4 mb-4 ${
+            debts.length > 0 && goals.length > 0 ? "lg:grid-cols-2" : ""
+          }`}
+        >
+          {debts.length > 0 && (
+            <div className="card-flat p-8 animate-rise rise-3">
+              <h2 className="font-semibold mb-1">Debt payoff</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Your surplus clears these first, highest rate leading
+              </p>
+
+              <div className="divide-y divide-border mb-6">
+                {debtsByRate.map((d, i) => (
+                  <div key={d.id} className="flex items-center gap-3 py-3">
+                    <span className="h-6 w-6 rounded-full bg-secondary text-xs font-mono flex items-center justify-center text-muted-foreground shrink-0">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-sm font-medium truncate">{d.label}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {d.rate}% p.a.
+                    </span>
+                    <span className="font-mono text-sm">
+                      {formatCurrency(d.balance)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                {SCENARIO_META.map((s) => {
+                  const result = projection[s.key];
+                  return (
+                    <div
+                      key={s.key}
+                      className={`flex items-center justify-between rounded-lg px-4 py-3 ${
+                        s.highlight ? "bg-mint" : "bg-secondary"
+                      }`}
+                    >
+                      <span
+                        className={`text-xs font-medium uppercase tracking-wider ${
+                          s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </span>
+                      <span
+                        className={`text-sm font-mono font-semibold ${
+                          s.highlight ? "text-mint-dark" : ""
+                        }`}
+                      >
+                        {result.debtFreeMonth === null
+                          ? "Not debt-free in 10 yrs"
+                          : `Debt-free in ${formatMonths(result.debtFreeMonth)}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-muted-foreground mt-4">
+                Interest paid over the decade:{" "}
+                <span className="font-mono">
+                  {formatCurrency(projection.current.interestPaid)}
+                </span>{" "}
+                staying the course,{" "}
+                <span className="font-mono text-mint-dark font-medium">
+                  {formatCurrency(projection.aggressive.interestPaid)}
+                </span>{" "}
+                with aggressive cuts.
+              </p>
+            </div>
+          )}
+
+          {goals.length > 0 && (
+            <div className="card-flat p-8 animate-rise rise-4">
+              <h2 className="font-semibold mb-1">Goal timelines</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                When each scenario reaches your targets
+              </p>
+
+              <div className="space-y-6">
+                {goals.map((g) => (
+                  <div key={g.id}>
+                    <div className="flex items-baseline justify-between mb-3">
+                      <span className="text-sm font-medium">{g.label}</span>
+                      <span className="font-mono text-sm text-muted-foreground">
+                        {formatCurrency(g.target)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {SCENARIO_META.map((s) => {
+                        const hit = projection[s.key].goalHitMonths[g.id];
+                        return (
+                          <div
+                            key={s.key}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="text-xs text-muted-foreground">
+                              {s.label}
+                            </span>
+                            <span
+                              className={`font-mono text-xs font-medium ${
+                                hit === null
+                                  ? "text-muted-foreground"
+                                  : s.highlight
+                                  ? "text-mint-dark"
+                                  : ""
+                              }`}
+                            >
+                              {formatMonths(hit)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Projection */}
       <div className="card-flat p-8 animate-rise rise-4">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
           <div>
-            <h2 className="font-semibold mb-1">Ten-year projection</h2>
+            <h2 className="font-semibold mb-1">
+              {debts.length > 0 ? "Ten-year net position" : "Ten-year projection"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Savings compounded monthly at your chosen return
+              {debts.length > 0
+                ? "Savings minus outstanding debt, compounded monthly"
+                : "Savings compounded monthly at your chosen return"}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -234,57 +368,60 @@ export function Dashboard({ income, expenses, onBack, onReset }: DashboardProps)
           </div>
         </div>
 
-        <ProjectionChart data={projections} />
+        <ProjectionChart data={projection.points} goals={goals} />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-          {scenarios.map((s) => (
-            <div
-              key={s.key}
-              className={`rounded-xl border p-6 ${
-                s.highlight ? "bg-mint border-mint" : "bg-white border-border"
-              }`}
-            >
-              <p
-                className={`text-xs font-medium uppercase tracking-wider mb-4 ${
-                  s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+          {SCENARIO_META.map((s) => {
+            const result = projection[s.key];
+            return (
+              <div
+                key={s.key}
+                className={`rounded-xl border p-6 ${
+                  s.highlight ? "bg-mint border-mint" : "bg-white border-border"
                 }`}
               >
-                {s.label}
-              </p>
-              <div className="flex items-baseline justify-between mb-2">
-                <span
-                  className={`text-xs font-mono ${
+                <p
+                  className={`text-xs font-medium uppercase tracking-wider mb-4 ${
                     s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
                   }`}
                 >
-                  5 yr
-                </span>
-                <span
-                  className={`font-mono font-medium ${
-                    s.highlight ? "text-mint-dark" : ""
-                  }`}
-                >
-                  {formatCurrency(s.five)}
-                </span>
+                  {s.label}
+                </p>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span
+                    className={`text-xs font-mono ${
+                      s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                    }`}
+                  >
+                    5 yr
+                  </span>
+                  <span
+                    className={`font-mono font-medium ${
+                      s.highlight ? "text-mint-dark" : ""
+                    }`}
+                  >
+                    {formatCurrency(result.netWorthByYear[5] ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span
+                    className={`text-xs font-mono ${
+                      s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
+                    }`}
+                  >
+                    10 yr
+                  </span>
+                  <span
+                    className={`text-xl font-mono font-semibold ${
+                      s.highlight ? "text-mint-dark" : ""
+                    }`}
+                  >
+                    {formatCurrency(result.netWorthByYear[10] ?? 0)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-baseline justify-between">
-                <span
-                  className={`text-xs font-mono ${
-                    s.highlight ? "text-mint-dark/70" : "text-muted-foreground"
-                  }`}
-                >
-                  10 yr
-                </span>
-                <span
-                  className={`text-xl font-mono font-semibold ${
-                    s.highlight ? "text-mint-dark" : ""
-                  }`}
-                >
-                  {formatCurrency(s.ten)}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

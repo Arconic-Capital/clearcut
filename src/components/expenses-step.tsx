@@ -64,7 +64,7 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
   return (
     <div className="max-w-lg mx-auto pt-10">
       <div className="text-center mb-10">
-        <span className="tag-neutral mb-6">Step 2 of 3</span>
+        <span className="tag-neutral mb-6">Step 2 of 4</span>
         <h1 className="font-serif-display text-4xl sm:text-5xl font-medium mt-6 mb-4">
           Where does
           <br />
@@ -190,7 +190,7 @@ export function ExpensesStep({ expenses: initial, onBack, onNext }: ExpensesStep
             onClick={() => onNext(expenses.filter((e) => e.amount > 0))}
             className="btn-primary flex-1 py-3 text-sm"
           >
-            See results
+            Continue
           </button>
         </div>
       </div>
